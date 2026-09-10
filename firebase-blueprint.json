@@ -1,0 +1,111 @@
+{
+  "entities": {
+    "Store": {
+      "title": "Store",
+      "description": "Comercio o restaurante del marketplace",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "tagline": { "type": "string" },
+        "description": { "type": "string" },
+        "cuisine": { "type": "string" },
+        "category": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewsCount": { "type": "number" },
+        "deliveryTime": { "type": "string" },
+        "deliveryFee": { "type": "number" },
+        "minOrder": { "type": "number" },
+        "distance": { "type": "string" },
+        "logo": { "type": "string" },
+        "coverImage": { "type": "string" },
+        "isOpen": { "type": "boolean" },
+        "isVerified": { "type": "boolean" },
+        "featured": { "type": "boolean" },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "address": { "type": "string" }
+      },
+      "required": ["id", "name", "category", "deliveryFee", "minOrder", "logo", "coverImage", "isOpen", "isVerified"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Producto de comida, supermercado o farmacia",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "storeId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "category": { "type": "string" },
+        "image": { "type": "string" },
+        "isAvailable": { "type": "boolean" },
+        "popular": { "type": "boolean" },
+        "preparationTime": { "type": "string" },
+        "calories": { "type": "string" }
+      },
+      "required": ["id", "storeId", "name", "price", "image", "isAvailable"]
+    },
+    "Courier": {
+      "title": "Courier",
+      "description": "Rider o repartidor logístico",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "vehicle": { "type": "string" },
+        "plate": { "type": "string" },
+        "phone": { "type": "string" },
+        "rating": { "type": "number" },
+        "completedDeliveries": { "type": "number" },
+        "status": { "type": "string" },
+        "currentLat": { "type": "number" },
+        "currentLng": { "type": "number" }
+      },
+      "required": ["id", "name", "vehicle", "avatar"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Pedido de delivery en proceso o completado",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "orderNumber": { "type": "string" },
+        "items": { "type": "array" },
+        "subtotal": { "type": "number" },
+        "deliveryFee": { "type": "number" },
+        "serviceFee": { "type": "number" },
+        "tip": { "type": "number" },
+        "discount": { "type": "number" },
+        "total": { "type": "number" },
+        "status": { "type": "string" },
+        "deliveryAddress": { "type": "object" },
+        "paymentMethod": { "type": "string" },
+        "courier": { "type": "object" },
+        "estimatedDeliveryTime": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "required": ["id", "orderNumber", "items", "total", "status", "deliveryAddress", "paymentMethod"]
+    }
+  },
+  "firestore": {
+    "stores": {
+      "entity": "Store",
+      "description": "Colección de comercios y restaurantes registrados"
+    },
+    "products": {
+      "entity": "Product",
+      "description": "Colección de productos y platillos del catálogo"
+    },
+    "couriers": {
+      "entity": "Courier",
+      "description": "Colección de repartidores y motorizados de la flota"
+    },
+    "orders": {
+      "entity": "Order",
+      "description": "Colección de pedidos y despachos realizados"
+    }
+  }
+}

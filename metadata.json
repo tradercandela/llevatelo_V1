@@ -1,0 +1,6 @@
+{
+  "name": "Llévatelo",
+  "description": "Plataforma marketplace y delivery ultra rápida: pide comida, café, víveres y servicios profesionales en minutos.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

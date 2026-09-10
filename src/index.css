@@ -1,0 +1,43 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .pt-safe {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  .pb-safe {
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* Smooth tap and scroll behavior for native-like feel */
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* Custom glow and tech shadow definitions */
+.tech-shadow {
+  box-shadow: 0px 4px 20px rgba(15, 23, 42, 0.06);
+}
+
+.tech-shadow-hover {
+  box-shadow: 0px 10px 30px rgba(20, 184, 166, 0.15);
+}
+
+.floating-cart-shadow {
+  box-shadow: 0px 12px 36px rgba(20, 184, 166, 0.35);
+}
+
