@@ -23,8 +23,16 @@ export interface ProductOptionGroup {
   id: string;
   name: string;
   required: boolean;
+  minSelect?: number;
   maxSelect?: number;
   options: ProductOption[];
+}
+
+export interface ProductVariant {
+  id: string;
+  name: string;
+  price: number;
+  isAvailable: boolean;
 }
 
 export interface Product {
@@ -33,13 +41,28 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  originalPrice?: number;
   image: string;
   category: string; // e.g. 'Populares', 'Especiales', 'Bebidas', 'Combos'
   isAvailable: boolean;
+  availabilityStatus?: 'available' | 'out_of_stock' | 'hidden' | 'coming_soon';
   popular?: boolean;
+  featured?: boolean;
   calories?: string;
   preparationTime?: string;
   optionGroups?: ProductOptionGroup[];
+  variants?: ProductVariant[];
+  isCombo?: boolean;
+  comboItems?: string[];
+  updatedAt?: string;
+}
+
+export interface StoreScheduleDay {
+  day: string;
+  label: string;
+  isOpen: boolean;
+  openTime: string;
+  closeTime: string;
 }
 
 export interface Store {
@@ -63,6 +86,24 @@ export interface Store {
   featured?: boolean;
   categories: string[];
   phone?: string;
+  email?: string;
+  whatsapp?: string;
+  city?: string;
+  neighborhood?: string;
+  statusMode?: 'open' | 'closed' | 'paused' | 'unavailable';
+  statusNote?: string;
+  schedules?: StoreScheduleDay[];
+  updatedAt?: string;
+}
+
+export interface AuditLogItem {
+  id: string;
+  storeId?: string;
+  storeName?: string;
+  action: string;
+  user: string;
+  details: string;
+  timestamp: string;
 }
 
 export interface QuickService {

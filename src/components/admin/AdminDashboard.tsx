@@ -1,48 +1,49 @@
 import React, { useState } from 'react';
 import { 
-  ArrowLeft, 
-  TrendingUp, 
-  Package, 
-  Users, 
-  Truck, 
-  CheckCircle, 
-  Clock, 
   Store as StoreIcon, 
+  Package, 
+  Truck, 
+  ShoppingBag, 
+  TrendingUp, 
+  AlertTriangle, 
+  CheckCircle2, 
   Plus, 
-  Percent, 
-  DollarSign, 
-  ShieldCheck,
-  AlertCircle,
-  Search,
-  Filter,
-  Edit2,
-  Trash2,
-  Phone,
+  ArrowLeft, 
+  Search, 
+  RefreshCw, 
+  ExternalLink, 
+  SlidersHorizontal,
+  LayoutDashboard,
+  Layers,
+  ChevronDown,
   Sparkles,
-  ExternalLink,
-  MapPin,
-  Flame,
-  Check,
-  XCircle,
-  BarChart3,
-  RefreshCw,
-  Database
+  Phone,
+  Clock,
+  ArrowRight,
+  ShieldCheck,
+  Building2
 } from 'lucide-react';
 import { useApp } from '../../store/useAppStore';
-import { OrderStatus, Store, Product, Courier, CategoryType } from '../../types';
+import { Store, Product, Courier, Order, OrderStatus, AuditLogItem } from '../../types';
+import { AlertsCenter } from './AlertsCenter';
+import { AdminStoresList } from './AdminStoresList';
+import { BusinessDetailView } from './BusinessDetailView';
+import { ProductManagementTable } from './ProductManagementTable';
+import { ProductEditorDrawer } from './ProductEditorDrawer';
 import { StoreModal } from './StoreModal';
-import { ProductModal } from './ProductModal';
 import { RiderModal } from './RiderModal';
+import { INITIAL_AUDIT_LOGS } from './adminHelpers';
+
+type AdminMainTab = 'overview' | 'stores' | 'products' | 'orders' | 'couriers' | 'stats';
 
 export const AdminDashboard: React.FC = () => {
-  const { 
-    orders, 
-    stores, 
-    products, 
+  const {
+    stores,
+    products,
     couriers,
-    advanceOrderStatus, 
-    cancelOrder,
-    assignCourierToOrder,
+    orders,
+    syncStatus,
+    setCurrentView,
     addStore,
     updateStore,
     deleteStore,
@@ -53,879 +54,862 @@ export const AdminDashboard: React.FC = () => {
     addCourier,
     updateCourier,
     deleteCourier,
-    toggleCourierStatus,
-    setCurrentView, 
-    setSelectedStoreId,
-    showToast,
-    isFirebaseConnected,
-    syncStatus
+    advanceOrderStatus,
+    assignRiderToOrder
   } = useApp();
 
-  const [adminTab, setAdminTab] = useState<'orders' | 'stores' | 'products' | 'couriers' | 'stats'>('orders');
+  // Navigation state
+  const [currentTab, setCurrentTab] = useState<AdminMainTab>('overview');
+  const [selectedStoreForDetailId, setSelectedStoreForDetailId] = useState<string | null>(null);
+
+  // Global Product tab filter
+  const [productTabStoreFilter, setProductTabStoreFilter] = useState<string>('all');
 
   // Modals state
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<Store | null>(null);
 
-  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isProductDrawerOpen, setIsProductDrawerOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [filterStoreIdForProducts, setFilterStoreIdForProducts] = useState<string>('all');
+  const [productDrawerStore, setProductDrawerStore] = useState<Store>(stores[0]);
 
   const [isRiderModalOpen, setIsRiderModalOpen] = useState(false);
   const [editingCourier, setEditingCourier] = useState<Courier | null>(null);
 
-  // Filters state
-  const [orderStatusFilter, setOrderStatusFilter] = useState<OrderStatus | 'all'>('all');
-  const [storeSearch, setStoreSearch] = useState('');
-  const [productSearch, setProductSearch] = useState('');
-  const [riderSearch, setRiderSearch] = useState('');
+  // Audit logs state
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(INITIAL_AUDIT_LOGS);
 
-  // Calculations & KPIs
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.status !== 'cancelled' ? o.total : 0), 2450000);
-  const activeOrders = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled');
-  const activeRiders = couriers.filter(c => c.status === 'active');
-  const onRouteRiders = couriers.filter(c => c.status === 'on_route');
-  const openStores = stores.filter(s => s.isOpen);
+  const addAuditLog = (action: string, details: string, storeName?: string) => {
+    const newLog: AuditLogItem = {
+      id: `log-${Date.now()}`,
+      storeName: storeName || 'Plataforma Llévatelo',
+      user: 'Julián Candela (Admin)',
+      action,
+      details,
+      timestamp: 'Ahora mismo'
+    };
+    setAuditLogs(prev => [newLog, ...prev.slice(0, 40)]);
+  };
 
-  // Filtered lists
-  const filteredOrders = orders.filter(ord => {
-    if (orderStatusFilter === 'all') return true;
-    return ord.status === orderStatusFilter;
-  });
+  // Currently selected store for deep view (if any)
+  const selectedStore = stores.find(s => s.id === selectedStoreForDetailId);
 
-  const filteredStores = stores.filter(st => {
-    const q = storeSearch.toLowerCase();
-    return st.name.toLowerCase().includes(q) || st.cuisine.toLowerCase().includes(q) || st.category.toLowerCase().includes(q);
-  });
-
-  const filteredProducts = products.filter(pr => {
-    const matchesStore = filterStoreIdForProducts === 'all' || pr.storeId === filterStoreIdForProducts;
-    const matchesSearch = pr.name.toLowerCase().includes(productSearch.toLowerCase()) || pr.category.toLowerCase().includes(productSearch.toLowerCase());
-    return matchesStore && matchesSearch;
-  });
-
-  const filteredCouriers = couriers.filter(cr => {
-    const q = riderSearch.toLowerCase();
-    return cr.name.toLowerCase().includes(q) || cr.phone.toLowerCase().includes(q) || cr.vehicle.toLowerCase().includes(q) || cr.plate.toLowerCase().includes(q);
-  });
+  // Filtered products for the global product tab
+  const productsForProductTab = productTabStoreFilter === 'all'
+    ? products
+    : products.filter(p => p.storeId === productTabStoreFilter);
 
   // Handlers for Store CRUD
-  const handleSaveStore = (storeData: Omit<Store, 'id'>, editId?: string) => {
+  const handleSaveStoreModal = (storeData: Omit<Store, 'id'>, editId?: string) => {
     if (editId) {
       updateStore(editId, storeData);
+      addAuditLog('Actualización de Comercio', `Comercio "${storeData.name}" modificado`, storeData.name);
     } else {
-      addStore(storeData);
+      const created = addStore(storeData);
+      addAuditLog('Nuevo Comercio', `Se registró "${created.name}" en la plataforma`, created.name);
     }
   };
 
-  const handleDeleteStore = (store: Store) => {
-    if (confirm(`¿Estás seguro de eliminar el comercio "${store.name}" y todos sus productos?`)) {
-      deleteStore(store.id);
-    }
+  const handleOpenEditStoreModal = (store: Store) => {
+    setEditingStore(store);
+    setIsStoreModalOpen(true);
+  };
+
+  const handleOpenAddStoreModal = () => {
+    setEditingStore(null);
+    setIsStoreModalOpen(true);
   };
 
   // Handlers for Product CRUD
-  const handleSaveProduct = (productData: Omit<Product, 'id'>, editId?: string) => {
+  const handleSaveProductDrawer = (prodData: Omit<Product, 'id'>, editId?: string) => {
     if (editId) {
-      updateProduct(editId, productData);
+      updateProduct(editId, prodData);
+      addAuditLog('Edición de Producto', `Se actualizó "${prodData.name}"`, productDrawerStore.name);
     } else {
-      addProduct(productData);
+      addProduct(prodData);
+      addAuditLog('Creación de Producto', `Nuevo producto "${prodData.name}"`, productDrawerStore.name);
     }
   };
 
-  const handleDeleteProduct = (product: Product) => {
-    if (confirm(`¿Eliminar "${product.name}" del catálogo?`)) {
-      deleteProduct(product.id);
-    }
+  const handleOpenAddProduct = (defaultStore?: Store) => {
+    const targetStore = defaultStore || (productTabStoreFilter !== 'all' ? stores.find(s => s.id === productTabStoreFilter) : stores[0]) || stores[0];
+    setProductDrawerStore(targetStore);
+    setEditingProduct(null);
+    setIsProductDrawerOpen(true);
   };
 
-  // Handlers for Courier CRUD
-  const handleSaveCourier = (courierData: Omit<Courier, 'id'>, editId?: string) => {
+  const handleOpenEditProduct = (prod: Product) => {
+    const parentStore = stores.find(s => s.id === prod.storeId) || stores[0];
+    setProductDrawerStore(parentStore);
+    setEditingProduct(prod);
+    setIsProductDrawerOpen(true);
+  };
+
+  // Handlers for Couriers
+  const handleSaveCourierModal = (courierData: Omit<Courier, 'id'>, editId?: string) => {
     if (editId) {
       updateCourier(editId, courierData);
+      addAuditLog('Actualización de Repartidor', `Datos de "${courierData.name}" modificados`);
     } else {
       addCourier(courierData);
+      addAuditLog('Nuevo Repartidor', `Rider "${courierData.name}" registrado`);
     }
   };
 
-  const handleDeleteCourier = (courier: Courier) => {
-    if (confirm(`¿Retirar a "${courier.name}" de la flota?`)) {
-      deleteCourier(courier.id);
-    }
+  // Bulk Product actions
+  const handleBulkUpdateAvailability = (ids: string[], isAvailable: boolean) => {
+    ids.forEach(id => {
+      updateProduct(id, { isAvailable });
+    });
+    addAuditLog('Disponibilidad Masiva', `${ids.length} productos marcados como ${isAvailable ? 'Disponibles' : 'Agotados'}`);
+  };
+
+  const handleBulkDeleteProducts = (ids: string[]) => {
+    ids.forEach(id => {
+      deleteProduct(id);
+    });
+    addAuditLog('Eliminación Masiva', `Se eliminaron ${ids.length} productos`);
+  };
+
+  // Order status advance
+  const handleAdvanceOrderStatus = (orderId: string, status?: OrderStatus) => {
+    advanceOrderStatus(orderId, status);
+    addAuditLog('Despacho de Pedido', `Pedido ${orderId} avanzado a ${status || 'siguiente fase'}`);
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 pb-32">
-      {/* Admin Top Sticky Navigation */}
-      <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 sm:px-6 h-16 flex items-center justify-between shadow-lg">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setCurrentView('home')}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors active:scale-95 border border-slate-700/60"
-            title="Volver a la App Principal"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
-              <span>Llévatelo Operations</span>
-              <span className="bg-teal-500/20 text-teal-400 border border-teal-500/30 text-[10px] font-mono px-2 py-0.5 rounded-full">
-                ADMIN CONSOLE
-              </span>
-            </h1>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              Torre de control logística, comercios, productos y flota en tiempo real
-            </p>
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#F8FAFC] text-[#111827] flex flex-col font-sans">
+      {/* Top Professional Executive Header */}
+      <header className="bg-white border-b border-[#E4E7EC] sticky top-0 z-40 shadow-2xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-16 gap-4">
+            {/* Left Brand Identity */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-black text-lg shadow-sm shadow-teal-500/30">
+                LL
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-sm font-black tracking-tight text-[#111827] uppercase">
+                    Llévatelo Admin
+                  </h1>
+                  <span className="px-1.5 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-700 text-[10px] font-bold">
+                    v2.0 Console
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#667085]">
+                  Gestión Comercial, Catálogo & Despacho
+                </p>
+              </div>
+            </div>
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Cloud Database Indicator */}
-          <div 
-            title="Base de datos persistente en la nube (Google Cloud Firebase Firestore)"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-xs"
-          >
-            <Database className="w-3.5 h-3.5 text-teal-400" />
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-semibold text-slate-200 hidden md:inline">Firebase Firestore:</span>
-            <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">
-              {syncStatus === 'connected' ? 'En Línea' : (syncStatus === 'syncing' ? 'Sincronizando' : 'Local')}
-            </span>
+            {/* Middle Quick Store Switcher (if on desktop) */}
+            <div className="hidden md:flex items-center gap-2">
+              <span className="text-xs text-[#667085] font-medium">Comercio activo:</span>
+              <select
+                value={selectedStoreForDetailId || 'all'}
+                onChange={e => {
+                  const val = e.target.value;
+                  if (val === 'all') {
+                    setSelectedStoreForDetailId(null);
+                  } else {
+                    setSelectedStoreForDetailId(val);
+                  }
+                }}
+                className="text-xs px-3 py-1.5 rounded-xl border border-[#D0D5DD] bg-[#F9FAFB] text-[#111827] font-semibold focus:outline-none focus:border-teal-600 focus:bg-white"
+              >
+                <option value="all">Todos los Comercios ({stores.length})</option>
+                {stores.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.cuisine})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Right Actions & Sync Status */}
+            <div className="flex items-center gap-3">
+              {/* Cloud Sync Status */}
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#E4E7EC] bg-[#F9FAFB] text-[11px]">
+                <span className={`w-2 h-2 rounded-full ${syncStatus === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                <span className="font-semibold text-[#344054]">
+                  {syncStatus === 'online' ? 'Firestore Sincronizado' : 'Modo Local'}
+                </span>
+              </div>
+
+              {/* Jump to customer app */}
+              <button
+                onClick={() => setCurrentView('home')}
+                className="px-3.5 py-1.5 rounded-xl border border-[#D0D5DD] hover:bg-[#F9FAFB] text-xs font-semibold text-[#344054] flex items-center gap-1.5 transition-colors"
+                title="Abrir la experiencia del cliente"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-[#667085]" />
+                <span className="hidden sm:inline">Ver Tienda de Clientes</span>
+                <span className="sm:hidden">Tienda</span>
+              </button>
+            </div>
           </div>
 
-          <button
-            onClick={() => setCurrentView('home')}
-            className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-teal-400" />
-            <span className="hidden sm:inline">Ver App Cliente</span>
-            <span className="sm:hidden">App</span>
-          </button>
+          {/* Primary Top Navigation Tabs (when not inside deep detail view) */}
+          {!selectedStoreForDetailId && (
+            <nav className="flex items-center gap-1 sm:gap-6 overflow-x-auto no-scrollbar pt-1 border-t border-[#F2F4F7]">
+              <button
+                onClick={() => setCurrentTab('overview')}
+                className={`py-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                  currentTab === 'overview'
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-[#667085] hover:text-[#111827]'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Vista General</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentTab('stores')}
+                className={`py-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                  currentTab === 'stores'
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-[#667085] hover:text-[#111827]'
+                }`}
+              >
+                <StoreIcon className="w-4 h-4" />
+                <span>Comercios ({stores.length})</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentTab('products')}
+                className={`py-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                  currentTab === 'products'
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-[#667085] hover:text-[#111827]'
+                }`}
+              >
+                <Package className="w-4 h-4" />
+                <span>Catálogo & Productos ({products.length})</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentTab('orders')}
+                className={`py-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                  currentTab === 'orders'
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-[#667085] hover:text-[#111827]'
+                }`}
+              >
+                <ShoppingBag className="w-4 h-4" />
+                <span>Despacho de Pedidos ({orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length})</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentTab('couriers')}
+                className={`py-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                  currentTab === 'couriers'
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-[#667085] hover:text-[#111827]'
+                }`}
+              >
+                <Truck className="w-4 h-4" />
+                <span>Flota Riders ({couriers.length})</span>
+              </button>
+
+              <button
+                onClick={() => setCurrentTab('stats')}
+                className={`py-3 text-xs font-bold border-b-2 transition-colors flex items-center gap-1.5 whitespace-nowrap ${
+                  currentTab === 'stats'
+                    ? 'border-teal-600 text-teal-700'
+                    : 'border-transparent text-[#667085] hover:text-[#111827]'
+                }`}
+              >
+                <TrendingUp className="w-4 h-4" />
+                <span>Métricas Globales</span>
+              </button>
+            </nav>
+          )}
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-3.5 sm:p-6 space-y-6">
-        {/* KPI Metrics Summary */}
-        <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {/* Revenue */}
-          <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl sm:rounded-3xl space-y-1 relative overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between text-teal-400">
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Ventas Hoy</span>
-              <div className="w-8 h-8 rounded-xl bg-teal-500/10 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-teal-400" />
-              </div>
-            </div>
-            <p className="text-lg sm:text-2xl font-black text-white">
-              ${totalRevenue.toLocaleString('es-CO')}
-            </p>
-            <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-              ● {orders.length} pedidos procesados
-            </span>
-          </div>
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 py-6">
+        {/* CASE A: Deep Business Detail View */}
+        {selectedStore ? (
+          <BusinessDetailView
+            store={selectedStore}
+            products={products}
+            orders={orders}
+            auditLogs={auditLogs.filter(l => l.storeName === selectedStore.name || !l.storeName)}
+            onBack={() => setSelectedStoreForDetailId(null)}
+            onUpdateStore={updatedData => updateStore(selectedStore.id, updatedData)}
+            onSaveProduct={handleSaveProductDrawer}
+            onDeleteProduct={deleteProduct}
+            onToggleProductAvailability={toggleProductAvailability}
+            onQuickUpdatePrice={(id, price) => updateProduct(id, { price })}
+            onBulkUpdateAvailability={handleBulkUpdateAvailability}
+            onBulkDeleteProducts={handleBulkDeleteProducts}
+            onUpdateCategories={newCategories => updateStore(selectedStore.id, { categories: newCategories })}
+            onRenameCategory={(oldName, newName) => {
+              const updatedCats = (selectedStore.categories || []).map(c => c === oldName ? newName : c);
+              updateStore(selectedStore.id, { categories: updatedCats });
+              // Update products belonging to this store
+              products.filter(p => p.storeId === selectedStore.id && p.category === oldName).forEach(p => {
+                updateProduct(p.id, { category: newName });
+              });
+            }}
+            onAddAuditLog={(action, details) => addAuditLog(action, details, selectedStore.name)}
+          />
+        ) : (
+          /* CASE B: General Multi-Tab Dashboard */
+          <>
+            {/* TAB 1: OVERVIEW */}
+            {currentTab === 'overview' && (
+              <div className="space-y-6">
+                {/* Executive KPIs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 shadow-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-[#667085]">Comercios Registrados</span>
+                      <div className="w-8 h-8 rounded-lg bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center">
+                        <StoreIcon className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-[#111827]">
+                      {stores.length}
+                    </div>
+                    <p className="text-[11px] text-[#667085] mt-1">
+                      {stores.filter(s => s.isOpen).length} abiertos ahora para despacho
+                    </p>
+                  </div>
 
-          {/* Active Orders */}
-          <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl sm:rounded-3xl space-y-1 relative overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between text-amber-400">
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">En Despacho</span>
-              <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                <Package className="w-4 h-4 text-amber-400" />
-              </div>
-            </div>
-            <p className="text-lg sm:text-2xl font-black text-white">
-              {activeOrders.length}
-            </p>
-            <span className="text-[10px] text-amber-400 font-semibold">
-              Tiempo prom: ~16 min
-            </span>
-          </div>
+                  <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 shadow-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-[#667085]">Productos en Menú</span>
+                      <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center">
+                        <Package className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-[#111827]">
+                      {products.length}
+                    </div>
+                    <p className="text-[11px] text-[#667085] mt-1">
+                      {products.filter(p => p.isAvailable).length} en stock / {products.filter(p => !p.isAvailable).length} agotados
+                    </p>
+                  </div>
 
-          {/* Stores */}
-          <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl sm:rounded-3xl space-y-1 relative overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between text-blue-400">
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Comercios</span>
-              <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                <StoreIcon className="w-4 h-4 text-blue-400" />
-              </div>
-            </div>
-            <p className="text-lg sm:text-2xl font-black text-white">
-              {stores.length}
-            </p>
-            <span className="text-[10px] text-blue-400 font-semibold">
-              {openStores.length} abiertos ahora
-            </span>
-          </div>
+                  <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 shadow-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-[#667085]">Flota de Repartidores</span>
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-[#111827]">
+                      {couriers.length}
+                    </div>
+                    <p className="text-[11px] text-emerald-700 font-semibold mt-1">
+                      {couriers.filter(c => c.status === 'active' || c.status === 'on_route').length} activos en calle
+                    </p>
+                  </div>
 
-          {/* Couriers */}
-          <div className="bg-slate-900 border border-slate-800 p-4 sm:p-5 rounded-2xl sm:rounded-3xl space-y-1 relative overflow-hidden shadow-sm">
-            <div className="flex items-center justify-between text-purple-400">
-              <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">Flota Riders</span>
-              <div className="w-8 h-8 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                <Truck className="w-4 h-4 text-purple-400" />
-              </div>
-            </div>
-            <p className="text-lg sm:text-2xl font-black text-white">
-              {couriers.length}
-            </p>
-            <span className="text-[10px] text-purple-400 font-semibold">
-              {activeRiders.length} listos • {onRouteRiders.length} en ruta
-            </span>
-          </div>
-        </section>
-
-        {/* Responsive Navigation Tabs */}
-        <div className="overflow-x-auto no-scrollbar pb-1">
-          <div className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 min-w-max">
-            {[
-              { id: 'orders', label: 'Pedidos en Vivo', icon: Package, badge: activeOrders.length },
-              { id: 'stores', label: 'Comercios', icon: StoreIcon, badge: stores.length },
-              { id: 'products', label: 'Productos & Menú', icon: Flame, badge: products.length },
-              { id: 'couriers', label: 'Flota Riders', icon: Truck, badge: couriers.length },
-              { id: 'stats', label: 'Métricas & KPIs', icon: BarChart3 }
-            ].map(tab => {
-              const Icon = tab.icon;
-              const isActive = adminTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setAdminTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                  {tab.badge !== undefined && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
-                      isActive ? 'bg-black/30 text-white' : 'bg-slate-800 text-slate-300'
-                    }`}>
-                      {tab.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* TAB 1: LIVE ORDERS KANBAN */}
-        {adminTab === 'orders' && (
-          <section className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
-              <div>
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <span>Cola de Despacho Logístico</span>
-                  <span className="bg-teal-500/20 text-teal-400 text-[10px] px-2 py-0.5 rounded-full font-mono">
-                    LIVE SYNC
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-400">
-                  Controla y avanza el estado de los pedidos o reasigna repartidores
-                </p>
-              </div>
-
-              {/* Status Pills Filter */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                {[
-                  { id: 'all', label: 'Todos' },
-                  { id: 'confirmed', label: 'Confirmados' },
-                  { id: 'preparing', label: 'Preparación' },
-                  { id: 'on_the_way', label: 'En Camino' },
-                  { id: 'delivered', label: 'Entregados' },
-                  { id: 'cancelled', label: 'Cancelados' }
-                ].map(filter => (
-                  <button
-                    key={filter.id}
-                    onClick={() => setOrderStatusFilter(filter.id as any)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                      orderStatusFilter === filter.id
-                        ? 'bg-teal-500 text-white'
-                        : 'bg-slate-800 text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {filter.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Orders List / Cards */}
-            <div className="space-y-3">
-              {filteredOrders.length === 0 ? (
-                <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 text-center space-y-2">
-                  <Package className="w-10 h-10 text-slate-600 mx-auto" />
-                  <p className="text-sm font-bold text-slate-300">No hay pedidos en este estado</p>
-                  <p className="text-xs text-slate-500">Los nuevos pedidos se sincronizan en tiempo real.</p>
+                  <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 shadow-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-[#667085]">Pedidos Activos</span>
+                      <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center">
+                        <ShoppingBag className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-[#111827]">
+                      {orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length}
+                    </div>
+                    <p className="text-[11px] text-[#667085] mt-1">
+                      {orders.length} pedidos históricos en sistema
+                    </p>
+                  </div>
                 </div>
-              ) : (
-                filteredOrders.map(order => {
-                  const statusColors: Record<OrderStatus, string> = {
-                    confirmed: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-                    preparing: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-                    picked_up: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-                    on_the_way: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
-                    delivered: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-                    cancelled: 'bg-red-500/20 text-red-400 border-red-500/30'
-                  };
 
-                  return (
-                    <div
-                      key={order.id}
-                      className="bg-slate-900 border border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 space-y-4 hover:border-slate-700 transition-all shadow-sm"
+                {/* Centro de Diagnóstico y Alertas */}
+                <AlertsCenter
+                  stores={stores}
+                  products={products}
+                  onSelectStore={storeId => setSelectedStoreForDetailId(storeId)}
+                  onFilterOutOfStock={() => setCurrentTab('products')}
+                />
+
+                {/* Quick Action Shortcuts */}
+                <div className="bg-white border border-[#E4E7EC] rounded-2xl p-5 shadow-xs">
+                  <h3 className="text-sm font-bold text-[#111827] mb-3">Acciones Rápidas</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <button
+                      onClick={handleOpenAddStoreModal}
+                      className="p-3.5 rounded-xl border border-[#D0D5DD] hover:border-teal-400 hover:bg-teal-50/40 text-left transition-all group"
                     >
-                      {/* Top Bar */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base font-black text-white">#{order.orderNumber}</span>
-                          <span className="text-xs text-slate-400">• {order.createdAt}</span>
-                          <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${statusColors[order.status]}`}>
-                            {order.status.toUpperCase()}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-2 text-right">
-                          <span className="text-xs text-slate-400">Total:</span>
-                          <span className="text-base font-black text-teal-400">
-                            ${order.total.toLocaleString('es-CO')}
-                          </span>
-                        </div>
+                      <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                        <Plus className="w-4 h-4" />
                       </div>
+                      <h4 className="text-xs font-bold text-[#111827]">Registrar Comercio</h4>
+                      <p className="text-[11px] text-[#667085]">Crear un nuevo establecimiento</p>
+                    </button>
 
-                      {/* Middle: Items & Address */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Productos ({order.items.reduce((s, i) => s + i.quantity, 0)})
-                          </span>
-                          <div className="space-y-1 text-xs text-slate-200">
-                            {order.items.map((it, idx) => (
-                              <div key={idx} className="flex justify-between items-center bg-slate-800/60 px-3 py-1.5 rounded-xl">
-                                <span>{it.quantity}x {it.product.name}</span>
-                                <span className="text-slate-400 font-mono">${(it.product.price * it.quantity).toLocaleString('es-CO')}</span>
+                    <button
+                      onClick={() => handleOpenAddProduct()}
+                      className="p-3.5 rounded-xl border border-[#D0D5DD] hover:border-teal-400 hover:bg-teal-50/40 text-left transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                        <Package className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-xs font-bold text-[#111827]">Añadir Producto</h4>
+                      <p className="text-[11px] text-[#667085]">Agregar ítem al catálogo</p>
+                    </button>
+
+                    <button
+                      onClick={() => setCurrentTab('orders')}
+                      className="p-3.5 rounded-xl border border-[#D0D5DD] hover:border-teal-400 hover:bg-teal-50/40 text-left transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                        <ShoppingBag className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-xs font-bold text-[#111827]">Despachar Pedidos</h4>
+                      <p className="text-[11px] text-[#667085]">Ver cola activa de órdenes</p>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setEditingCourier(null);
+                        setIsRiderModalOpen(true);
+                      }}
+                      className="p-3.5 rounded-xl border border-[#D0D5DD] hover:border-teal-400 hover:bg-teal-50/40 text-left transition-all group"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
+                        <Truck className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-xs font-bold text-[#111827]">Nuevo Repartidor</h4>
+                      <p className="text-[11px] text-[#667085]">Vincular rider a la flota</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Quick Stores Grid */}
+                <div className="bg-white border border-[#E4E7EC] rounded-2xl p-5 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-[#111827]">Comercios Destacados</h3>
+                      <p className="text-xs text-[#667085]">Selecciona un negocio para administrar su catálogo completo</p>
+                    </div>
+                    <button
+                      onClick={() => setCurrentTab('stores')}
+                      className="text-xs font-semibold text-teal-700 hover:text-teal-800 flex items-center gap-1"
+                    >
+                      <span>Ver todos ({stores.length})</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {stores.slice(0, 6).map(s => {
+                      const count = products.filter(p => p.storeId === s.id).length;
+                      return (
+                        <div 
+                          key={s.id}
+                          className="p-4 rounded-xl border border-[#E4E7EC] hover:border-teal-300 hover:shadow-xs transition-all bg-white flex flex-col justify-between gap-3"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden border border-[#E4E7EC] flex-shrink-0">
+                              <img src={s.logo} alt={s.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <h4 className="text-xs font-bold text-[#111827] truncate">{s.name}</h4>
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${s.isOpen ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                               </div>
-                            ))}
+                              <p className="text-[11px] text-[#667085] truncate">{s.cuisine || 'Comercio'}</p>
+                              <span className="text-[10px] text-[#98A2B3]">{count} productos registrados</span>
+                            </div>
                           </div>
-                        </div>
 
-                        <div className="space-y-2 text-xs">
-                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                            Destino & Pago
-                          </span>
-                          <div className="bg-slate-800/60 p-3 rounded-xl space-y-1 text-slate-300">
-                            <p className="font-bold text-white flex items-center gap-1.5">
-                              <MapPin className="w-3.5 h-3.5 text-teal-400" />
-                              <span>{order.deliveryAddress.fullAddress}</span>
-                            </p>
-                            <p className="text-slate-400 text-[11px]">{order.deliveryAddress.area}</p>
-                            <p className="text-slate-400 text-[11px] pt-1">
-                              Método: <span className="text-white font-bold">{order.paymentMethod.toUpperCase()}</span> • Propina: ${order.tip.toLocaleString('es-CO')}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bottom Controls: Courier Assignment & Actions */}
-                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
-                        {/* Courier Selector */}
-                        <div className="flex items-center gap-2">
-                          <Truck className="w-4 h-4 text-purple-400" />
-                          <span className="text-xs text-slate-400">Rider:</span>
-                          <select
-                            value={order.courier?.id || ''}
-                            onChange={e => assignCourierToOrder(order.id, e.target.value)}
-                            className="bg-slate-800 border border-slate-700 text-xs text-white rounded-xl px-2.5 py-1.5 focus:outline-none focus:border-teal-500"
+                          <button
+                            onClick={() => setSelectedStoreForDetailId(s.id)}
+                            className="w-full py-2 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"
                           >
-                            <option value="">-- Sin Asignar --</option>
-                            {couriers.map(cr => (
-                              <option key={cr.id} value={cr.id}>
-                                {cr.name} ({cr.vehicle} - {cr.status === 'active' ? 'Libre' : cr.status})
-                              </option>
-                            ))}
-                          </select>
+                            <span>Administrar Negocio</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-
-                        {/* Status Transition Action Buttons */}
-                        <div className="flex items-center gap-2 ml-auto">
-                          {order.status === 'confirmed' && (
-                            <button
-                              onClick={() => advanceOrderStatus(order.id, 'preparing')}
-                              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                            >
-                              <CheckCircle className="w-3.5 h-3.5" />
-                              <span>Pasar a Preparando</span>
-                            </button>
-                          )}
-
-                          {order.status === 'preparing' && (
-                            <button
-                              onClick={() => advanceOrderStatus(order.id, 'on_the_way')}
-                              className="px-3.5 py-1.5 bg-teal-500 hover:bg-teal-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                            >
-                              <Truck className="w-3.5 h-3.5" />
-                              <span>Despachar (En Camino)</span>
-                            </button>
-                          )}
-
-                          {order.status === 'on_the_way' && (
-                            <button
-                              onClick={() => advanceOrderStatus(order.id, 'delivered')}
-                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                              <span>Marcar Entregado</span>
-                            </button>
-                          )}
-
-                          {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                            <button
-                              onClick={() => cancelOrder(order.id)}
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700 rounded-xl text-xs font-bold transition-all"
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* TAB 2: STORES MANAGEMENT (AGREGAR Y EDITAR COMERCIOS) */}
-        {adminTab === 'stores' && (
-          <section className="space-y-4">
-            {/* Top Store Actions */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={storeSearch}
-                  onChange={e => setStoreSearch(e.target.value)}
-                  placeholder="Buscar comercio por nombre o cocina..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
-                />
-              </div>
-
-              <button
-                onClick={() => {
-                  setEditingStore(null);
-                  setIsStoreModalOpen(true);
-                }}
-                className="px-4 py-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Agregar Nuevo Comercio</span>
-              </button>
-            </div>
-
-            {/* Stores Responsive Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredStores.map(store => {
-                const storeProducts = products.filter(p => p.storeId === store.id);
-
-                return (
-                  <div
-                    key={store.id}
-                    className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:border-slate-700 transition-all flex flex-col justify-between"
-                  >
-                    {/* Header Banner */}
-                    <div className="relative h-28 w-full bg-slate-800">
-                      <img
-                        src={store.coverImage}
-                        alt={store.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
-
-                      <div className="absolute top-3 left-3">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          store.isOpen ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
-                        }`}>
-                          {store.isOpen ? 'Abierto' : 'Cerrado'}
-                        </span>
-                      </div>
-
-                      {store.isVerified && (
-                        <div className="absolute top-3 right-3 bg-teal-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                          <Sparkles className="w-3 h-3" /> Verificado
-                        </div>
-                      )}
-
-                      <img
-                        src={store.logo}
-                        alt={store.name}
-                        className="w-12 h-12 rounded-2xl object-cover border-2 border-slate-900 shadow-md absolute -bottom-3 left-4 bg-slate-800"
-                      />
-                    </div>
-
-                    {/* Body */}
-                    <div className="p-4 pt-5 space-y-3 flex-1">
-                      <div>
-                        <h4 className="text-sm font-bold text-white flex items-center justify-between">
-                          <span className="truncate">{store.name}</span>
-                          <span className="text-xs text-amber-400 font-bold ml-2">★ {store.rating}</span>
-                        </h4>
-                        <p className="text-xs text-slate-400 mt-0.5">{store.cuisine}</p>
-                        <p className="text-[11px] text-slate-500 truncate mt-0.5">{store.address}</p>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-2 bg-slate-800/60 p-2.5 rounded-xl text-center text-[11px]">
-                        <div>
-                          <span className="text-slate-400 block text-[9px] uppercase">Tiempo</span>
-                          <span className="font-bold text-white">{store.deliveryTime}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[9px] uppercase">Envío</span>
-                          <span className="font-bold text-teal-400">
-                            {store.deliveryFee === 0 ? 'Gratis' : `$${store.deliveryFee.toLocaleString('es-CO')}`}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400 block text-[9px] uppercase">Productos</span>
-                          <span className="font-bold text-white">{storeProducts.length}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Footer Actions */}
-                    <div className="p-3 bg-slate-900/90 border-t border-slate-800 flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => {
-                          setFilterStoreIdForProducts(store.id);
-                          setAdminTab('products');
-                        }}
-                        className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-teal-400 rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
-                      >
-                        <Flame className="w-3.5 h-3.5" />
-                        <span>Ver Menú</span>
-                      </button>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => {
-                            setEditingStore(store);
-                            setIsStoreModalOpen(true);
-                          }}
-                          className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-                          title="Editar Comercio"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteStore(store)}
-                          className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 flex items-center justify-center transition-colors"
-                          title="Eliminar Comercio"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
+                </div>
 
-        {/* TAB 3: PRODUCTS & CATALOG MANAGEMENT (AGREGAR Y ACTUALIZAR PRODUCTOS) */}
-        {adminTab === 'products' && (
-          <section className="space-y-4">
-            {/* Top Product Filters & Add Button */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
-              <div className="flex flex-wrap items-center gap-2 flex-1">
-                {/* Store Filter Selector */}
-                <select
-                  value={filterStoreIdForProducts}
-                  onChange={e => setFilterStoreIdForProducts(e.target.value)}
-                  className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-teal-500"
-                >
-                  <option value="all">Todos los Comercios ({products.length} productos)</option>
-                  {stores.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-
-                <div className="relative flex-1 min-w-[200px]">
-                  <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    value={productSearch}
-                    onChange={e => setProductSearch(e.target.value)}
-                    placeholder="Buscar producto por nombre o categoría..."
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
-                  />
+                {/* Audit Log Overview */}
+                <div className="bg-white border border-[#E4E7EC] rounded-2xl p-5 shadow-xs space-y-3">
+                  <h3 className="text-sm font-bold text-[#111827]">Historial Reciente de Operaciones</h3>
+                  <div className="divide-y divide-[#E4E7EC] border border-[#E4E7EC] rounded-xl overflow-hidden text-xs">
+                    {auditLogs.slice(0, 5).map(log => (
+                      <div key={log.id} className="p-3 flex items-center justify-between gap-3">
+                        <div>
+                          <span className="font-bold text-[#111827]">{log.action}</span>
+                          <span className="text-[#667085] ml-2">({log.storeName})</span>
+                          <p className="text-[11px] text-[#667085]">{log.details}</p>
+                        </div>
+                        <span className="text-[10px] text-[#98A2B3] whitespace-nowrap">{log.timestamp}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
+            )}
 
-              <button
-                onClick={() => {
-                  setEditingProduct(null);
-                  setIsProductModalOpen(true);
+            {/* TAB 2: STORES DIRECTORY */}
+            {currentTab === 'stores' && (
+              <AdminStoresList
+                stores={stores}
+                products={products}
+                onSelectStore={storeId => setSelectedStoreForDetailId(storeId)}
+                onAddNewStore={handleOpenAddStoreModal}
+                onEditStoreInfo={handleOpenEditStoreModal}
+                onDeleteStore={deleteStore}
+                onQuickToggleStoreStatus={(storeId, current) => {
+                  updateStore(storeId, { isOpen: !current });
+                  addAuditLog('Cambio Rápido de Estado', `Comercio ${!current ? 'Abierto' : 'Cerrado'}`);
                 }}
-                className="px-4 py-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Agregar Nuevo Producto</span>
-              </button>
-            </div>
+              />
+            )}
 
-            {/* Products Responsive Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {filteredProducts.map(prod => {
-                const store = stores.find(s => s.id === prod.storeId);
-
-                return (
-                  <div
-                    key={prod.id}
-                    className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-3 hover:border-slate-700 transition-all shadow-sm"
-                  >
-                    <div className="flex gap-3">
-                      <img
-                        src={prod.image}
-                        alt={prod.name}
-                        className="w-16 h-16 rounded-2xl object-cover flex-shrink-0 bg-slate-800"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider truncate">
-                            {store?.name || 'Comercio'}
-                          </span>
-                          {prod.popular && (
-                            <span className="bg-amber-500/20 text-amber-400 text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                              <Flame className="w-2.5 h-2.5" /> Top
-                            </span>
-                          )}
-                        </div>
-                        <h4 className="text-xs font-bold text-white truncate mt-0.5">{prod.name}</h4>
-                        <p className="text-[11px] text-slate-400 line-clamp-1 mt-0.5">{prod.description}</p>
-                        <span className="text-sm font-black text-teal-400 block mt-1">
-                          ${prod.price.toLocaleString('es-CO')}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Action Bar */}
-                    <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                      <button
-                        onClick={() => toggleProductAvailability(prod.id)}
-                        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all flex items-center gap-1 ${
-                          prod.isAvailable
-                            ? 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
-                            : 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30'
-                        }`}
-                      >
-                        {prod.isAvailable ? <Check className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                        <span>{prod.isAvailable ? 'En Stock' : 'Pausado'}</span>
-                      </button>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => {
-                            setEditingProduct(prod);
-                            setIsProductModalOpen(true);
-                          }}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-colors flex items-center gap-1"
-                        >
-                          <Edit2 className="w-3 h-3" />
-                          <span>Editar</span>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(prod)}
-                          className="w-7 h-7 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 flex items-center justify-center transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+            {/* TAB 3: PRODUCTS & CATALOG */}
+            {currentTab === 'products' && (
+              <div className="space-y-4">
+                {/* Store selector for products */}
+                <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-[#111827]">Filtrar por comercio:</span>
+                    <select
+                      value={productTabStoreFilter}
+                      onChange={e => setProductTabStoreFilter(e.target.value)}
+                      className="text-xs px-3 py-1.5 rounded-xl border border-[#D0D5DD] bg-[#F9FAFB] text-[#111827] font-semibold focus:outline-none focus:border-teal-600"
+                    >
+                      <option value="all">Todos los Comercios ({products.length} productos)</option>
+                      {stores.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({products.filter(p => p.storeId === s.id).length} productos)
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
-        {/* TAB 4: COURIERS & RIDERS MANAGEMENT (AGREGAR Y GESTIONAR RIDERS) */}
-        {adminTab === 'couriers' && (
-          <section className="space-y-4">
-            {/* Top Couriers Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900 p-4 rounded-2xl border border-slate-800">
-              <div className="relative flex-1 max-w-md">
-                <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={riderSearch}
-                  onChange={e => setRiderSearch(e.target.value)}
-                  placeholder="Buscar rider por nombre, placa o celular..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl pl-9 pr-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500"
+                  {productTabStoreFilter !== 'all' && (
+                    <button
+                      onClick={() => setSelectedStoreForDetailId(productTabStoreFilter)}
+                      className="text-xs font-semibold text-teal-700 hover:text-teal-800 flex items-center gap-1"
+                    >
+                      <span>Abrir vista completa de este comercio</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <ProductManagementTable
+                  products={productsForProductTab}
+                  store={productTabStoreFilter !== 'all' ? stores.find(s => s.id === productTabStoreFilter) : undefined}
+                  allStores={stores}
+                  onAddProduct={() => handleOpenAddProduct()}
+                  onEditProduct={handleOpenEditProduct}
+                  onDeleteProduct={deleteProduct}
+                  onToggleAvailability={toggleProductAvailability}
+                  onQuickUpdatePrice={(id, price) => updateProduct(id, { price })}
+                  onBulkUpdateAvailability={handleBulkUpdateAvailability}
+                  onBulkDelete={handleBulkDeleteProducts}
                 />
               </div>
+            )}
 
-              <button
-                onClick={() => {
-                  setEditingCourier(null);
-                  setIsRiderModalOpen(true);
-                }}
-                className="px-4 py-2.5 bg-teal-500 hover:bg-teal-600 text-white rounded-xl text-xs font-bold shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Agregar Nuevo Rider</span>
-              </button>
-            </div>
+            {/* TAB 4: ORDERS DISPATCH */}
+            {currentTab === 'orders' && (
+              <div className="space-y-5">
+                <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+                  <div>
+                    <h3 className="text-base font-bold text-[#111827]">Centro de Despacho & Pedidos en Vivo</h3>
+                    <p className="text-xs text-[#667085]">
+                      Supervisa órdenes entrantes, tiempos de cocina y asignación de repartidores en tiempo real
+                    </p>
+                  </div>
 
-            {/* Couriers Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCouriers.map(rider => {
-                const statusBadge = {
-                  active: { label: 'Disponible', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-                  on_route: { label: 'En Ruta', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-                  offline: { label: 'Desconectado', color: 'bg-slate-700/60 text-slate-400 border-slate-600' }
-                }[rider.status || 'active'];
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-800">
+                      {orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length} órdenes en curso
+                    </span>
+                  </div>
+                </div>
 
-                return (
-                  <div
-                    key={rider.id}
-                    className="bg-slate-900 border border-slate-800 rounded-3xl p-4 sm:p-5 space-y-4 hover:border-slate-700 transition-all shadow-sm flex flex-col justify-between"
+                {/* Orders Kanban Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Column 1: Pendientes */}
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 flex items-center justify-between">
+                      <span className="text-xs font-bold text-amber-900">Pendientes / Confirmados</span>
+                      <span className="w-5 h-5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-bold flex items-center justify-center">
+                        {orders.filter(o => o.status === 'confirmed').length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {orders.filter(o => o.status === 'confirmed').map(order => (
+                        <div key={order.id} className="p-3.5 rounded-2xl border border-[#E4E7EC] bg-white shadow-xs space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-[#111827]">#{order.orderNumber}</span>
+                            <span className="text-[10px] text-[#667085]">{order.timeline?.confirmedAt || 'Hace poco'}</span>
+                          </div>
+
+                          <div>
+                            <h4 className="text-xs font-bold text-teal-800">{order.storeName}</h4>
+                            <p className="text-[11px] text-[#667085]">{order.items?.length} productos · ${order.total?.toLocaleString('es-CO')}</p>
+                          </div>
+
+                          <button
+                            onClick={() => handleAdvanceOrderStatus(order.id, 'preparing')}
+                            className="w-full py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-colors"
+                          >
+                            Pasar a Preparación →
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Column 2: En Preparación */}
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-xl bg-indigo-50/80 border border-indigo-200 flex items-center justify-between">
+                      <span className="text-xs font-bold text-indigo-900">En Cocina / Preparación</span>
+                      <span className="w-5 h-5 rounded-full bg-indigo-200 text-indigo-900 text-[10px] font-bold flex items-center justify-center">
+                        {orders.filter(o => o.status === 'preparing').length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {orders.filter(o => o.status === 'preparing').map(order => (
+                        <div key={order.id} className="p-3.5 rounded-2xl border border-[#E4E7EC] bg-white shadow-xs space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-[#111827]">#{order.orderNumber}</span>
+                            <span className="text-[10px] text-[#667085]">{order.timeline?.preparingAt || 'Preparando'}</span>
+                          </div>
+
+                          <div>
+                            <h4 className="text-xs font-bold text-teal-800">{order.storeName}</h4>
+                            <p className="text-[11px] text-[#667085]">{order.deliveryAddress?.label || 'Dirección de entrega'}</p>
+                          </div>
+
+                          {/* Rider assigner */}
+                          <div className="pt-1 border-t border-[#F2F4F7]">
+                            <label className="text-[10px] font-bold text-[#667085] block mb-1">Rider Asignado:</label>
+                            <select
+                              value={order.courier?.id || couriers[0]?.id}
+                              onChange={e => assignRiderToOrder(order.id, e.target.value)}
+                              className="w-full text-xs px-2 py-1 rounded-lg border border-[#D0D5DD] bg-white text-[#111827]"
+                            >
+                              {couriers.map(c => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name} ({c.vehicle})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <button
+                            onClick={() => handleAdvanceOrderStatus(order.id, 'on_the_way')}
+                            className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors"
+                          >
+                            Despachar en Ruta →
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Column 3: En Ruta */}
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-xl bg-teal-50/80 border border-teal-200 flex items-center justify-between">
+                      <span className="text-xs font-bold text-teal-900">En Ruta de Entrega</span>
+                      <span className="w-5 h-5 rounded-full bg-teal-200 text-teal-900 text-[10px] font-bold flex items-center justify-center">
+                        {orders.filter(o => o.status === 'on_the_way').length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {orders.filter(o => o.status === 'on_the_way').map(order => (
+                        <div key={order.id} className="p-3.5 rounded-2xl border border-[#E4E7EC] bg-white shadow-xs space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-[#111827]">#{order.orderNumber}</span>
+                            <span className="text-[10px] text-teal-700 font-bold">En camino</span>
+                          </div>
+
+                          <div>
+                            <h4 className="text-xs font-bold text-[#111827]">{order.deliveryAddress?.label || 'Dirección cliente'}</h4>
+                            <p className="text-[11px] text-[#667085]">Rider: {order.courier?.name || 'Rider Asignado'}</p>
+                          </div>
+
+                          <button
+                            onClick={() => handleAdvanceOrderStatus(order.id, 'delivered')}
+                            className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors"
+                          >
+                            ✓ Marcar como Entregado
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Column 4: Entregados */}
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-900">Entregados Hoy</span>
+                      <span className="w-5 h-5 rounded-full bg-emerald-200 text-emerald-900 text-[10px] font-bold flex items-center justify-center">
+                        {orders.filter(o => o.status === 'delivered').length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {orders.filter(o => o.status === 'delivered').slice(0, 5).map(order => (
+                        <div key={order.id} className="p-3 rounded-2xl border border-[#E4E7EC] bg-[#F9FAFB] space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-[#111827]">#{order.orderNumber}</span>
+                            <span className="text-[10px] text-emerald-700 font-bold">Completado</span>
+                          </div>
+                          <p className="text-[11px] text-[#667085]">{order.storeName} · ${order.total?.toLocaleString('es-CO')}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: COURIERS */}
+            {currentTab === 'couriers' && (
+              <div className="space-y-5">
+                <div className="bg-white border border-[#E4E7EC] rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 shadow-xs">
+                  <div>
+                    <h3 className="text-base font-bold text-[#111827]">Flota de Repartidores & Riders</h3>
+                    <p className="text-xs text-[#667085]">
+                      Gestión de conductores activos, vehículos, estado de conexión y entregas
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingCourier(null);
+                      setIsRiderModalOpen(true);
+                    }}
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold shadow-xs flex items-center gap-1.5"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <Plus className="w-4 h-4" />
+                    <span>Registrar Rider</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {couriers.map(rider => (
+                    <div key={rider.id} className="bg-white border border-[#E4E7EC] rounded-2xl p-4 shadow-xs space-y-3">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={rider.avatar}
-                          alt={rider.name}
-                          className="w-14 h-14 rounded-2xl object-cover border-2 border-teal-500/50 shadow-md bg-slate-800"
-                        />
-                        <div>
-                          <h4 className="text-sm font-bold text-white">{rider.name}</h4>
-                          <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                            <Truck className="w-3.5 h-3.5 text-slate-500" />
-                            <span>{rider.vehicle}</span>
-                          </p>
-                          <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-md mt-1 inline-block">
-                            Placa: {rider.plate}
-                          </span>
+                        <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white shadow-xs">
+                          <img src={rider.avatar} alt={rider.name} className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-xs font-bold text-[#111827]">{rider.name}</h4>
+                          <p className="text-[11px] text-[#667085]">{rider.vehicle} · {rider.plate}</p>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span className="text-amber-500 font-bold text-[11px]">★ {rider.rating}</span>
+                            <span className="text-[10px] text-[#98A2B3]">({rider.completedDeliveries} entregas)</span>
+                          </div>
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => toggleCourierStatus(rider.id)}
-                        className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border transition-all ${statusBadge.color}`}
-                        title="Click para alternar estado"
-                      >
-                        ● {statusBadge.label}
-                      </button>
-                    </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-[#F2F4F7] text-xs">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          rider.status === 'active' 
+                            ? 'bg-emerald-50 text-emerald-800' 
+                            : rider.status === 'on_route' 
+                            ? 'bg-amber-50 text-amber-800' 
+                            : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {rider.status === 'active' ? 'Disponible' : rider.status === 'on_route' ? 'En ruta' : 'Desconectado'}
+                        </span>
 
-                    {/* Stats & Phone */}
-                    <div className="grid grid-cols-2 gap-2 bg-slate-800/60 p-2.5 rounded-2xl text-xs">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Entregas</span>
-                        <span className="font-bold text-white">{rider.completedDeliveries.toLocaleString('es-CO')} pedidos</span>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-slate-400 block">Calificación</span>
-                        <span className="font-bold text-amber-400">★ {rider.rating}</span>
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-2">
-                      <a
-                        href={`tel:${rider.phone}`}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
-                      >
-                        <Phone className="w-3.5 h-3.5 text-teal-400" />
-                        <span>{rider.phone}</span>
-                      </a>
-
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => {
-                            setEditingCourier(rider);
-                            setIsRiderModalOpen(true);
-                          }}
-                          className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white flex items-center justify-center transition-colors"
-                          title="Editar Rider"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteCourier(rider)}
-                          className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 flex items-center justify-center transition-colors"
-                          title="Eliminar de la Flota"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingCourier(rider);
+                              setIsRiderModalOpen(true);
+                            }}
+                            className="text-xs text-teal-700 hover:text-teal-800 font-semibold"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => deleteCourier(rider.id)}
+                            className="text-xs text-red-600 hover:text-red-700 font-semibold"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 6: METRICS / STATS */}
+            {currentTab === 'stats' && (
+              <div className="space-y-6">
+                <div className="bg-white border border-[#E4E7EC] rounded-2xl p-5 shadow-xs">
+                  <h3 className="text-base font-bold text-[#111827] mb-1">Métricas de Plataforma & Marketplace</h3>
+                  <p className="text-xs text-[#667085]">Monitoreo de SLAs, volumen de transacciones y conversión</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="bg-white border border-[#E4E7EC] rounded-2xl p-5 shadow-xs space-y-1">
+                    <span className="text-xs text-[#667085]">Tasa de Cumplimiento Logístico</span>
+                    <p className="text-2xl font-bold text-emerald-700">99.4%</p>
+                    <span className="text-[11px] text-emerald-700">SLA Óptimo en Cañaveral</span>
                   </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
 
-        {/* TAB 5: STATS & ANALYTICS */}
-        {adminTab === 'stats' && (
-          <section className="space-y-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6">
-              <div>
-                <h3 className="text-base font-bold text-white">Métricas y Rendimiento Operativo</h3>
-                <p className="text-xs text-slate-400">Estadísticas consolidadas de la red Llévatelo</p>
-              </div>
+                  <div className="bg-white border border-[#E4E7EC] rounded-2xl p-5 shadow-xs space-y-1">
+                    <span className="text-xs text-[#667085]">Tiempo Promedio de Entrega</span>
+                    <p className="text-2xl font-bold text-teal-700">18.2 min</p>
+                    <span className="text-[11px] text-[#667085]">Meta &lt; 25 min cumplida</span>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-slate-800/60 p-4 rounded-2xl space-y-1">
-                  <span className="text-xs text-slate-400">Ticket Promedio por Pedido</span>
-                  <p className="text-xl font-bold text-teal-400">
-                    ${Math.round(totalRevenue / Math.max(1, orders.length)).toLocaleString('es-CO')}
-                  </p>
-                  <span className="text-[10px] text-emerald-400">+12% vs semana anterior</span>
-                </div>
-
-                <div className="bg-slate-800/60 p-4 rounded-2xl space-y-1">
-                  <span className="text-xs text-slate-400">Tasa de Cumplimiento Logístico</span>
-                  <p className="text-xl font-bold text-white">99.4%</p>
-                  <span className="text-[10px] text-emerald-400">Excelente SLA</span>
-                </div>
-
-                <div className="bg-slate-800/60 p-4 rounded-2xl space-y-1">
-                  <span className="text-xs text-slate-400">Tiempo Promedio de Entrega</span>
-                  <p className="text-xl font-bold text-amber-400">18.2 min</p>
-                  <span className="text-[10px] text-slate-400">Objetivo &lt; 25 min cumplido</span>
+                  <div className="bg-white border border-[#E4E7EC] rounded-2xl p-5 shadow-xs space-y-1">
+                    <span className="text-xs text-[#667085]">Índice de Stock Activo</span>
+                    <p className="text-2xl font-bold text-indigo-700">
+                      {Math.round((products.filter(p => p.isAvailable).length / (products.length || 1)) * 100)}%
+                    </p>
+                    <span className="text-[11px] text-[#667085]">Salud del inventario</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            )}
+          </>
         )}
       </main>
 
-      {/* Global Admin Modals */}
+      {/* Global Modals */}
       <StoreModal
         isOpen={isStoreModalOpen}
         onClose={() => {
           setIsStoreModalOpen(false);
           setEditingStore(null);
         }}
-        onSave={handleSaveStore}
+        onSave={handleSaveStoreModal}
         initialStore={editingStore}
       />
 
-      <ProductModal
-        isOpen={isProductModalOpen}
+      <ProductEditorDrawer
+        isOpen={isProductDrawerOpen}
         onClose={() => {
-          setIsProductModalOpen(false);
+          setIsProductDrawerOpen(false);
           setEditingProduct(null);
         }}
-        onSave={handleSaveProduct}
+        onSave={handleSaveProductDrawer}
         initialProduct={editingProduct}
-        stores={stores}
-        defaultStoreId={filterStoreIdForProducts !== 'all' ? filterStoreIdForProducts : undefined}
+        store={productDrawerStore}
       />
 
       <RiderModal
@@ -934,7 +918,7 @@ export const AdminDashboard: React.FC = () => {
           setIsRiderModalOpen(false);
           setEditingCourier(null);
         }}
-        onSave={handleSaveCourier}
+        onSave={handleSaveCourierModal}
         initialCourier={editingCourier}
       />
     </div>
