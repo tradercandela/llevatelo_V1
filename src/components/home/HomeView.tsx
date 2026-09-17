@@ -111,10 +111,10 @@ export const HomeView: React.FC = () => {
           <div className="relative z-10 space-y-1">
             <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1">
               <Zap className="w-3 h-3 fill-white" />
-              <span>Promo de Lanzamiento</span>
+              <span>Lo pides. Te lo llevan.</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
-              Bienvenido a Llévatelo
+              Bienvenido a MANDÚ
             </h2>
             <p className="text-sm font-medium opacity-95">
               $0 costo de envío en tu primer pedido
@@ -171,11 +171,11 @@ export const HomeView: React.FC = () => {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/40 via-transparent to-transparent"></div>
 
-                  {/* Llévatelo Verificado Badge */}
+                  {/* MANDÚ Verificado Badge */}
                   {store.isVerified && (
                     <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm text-teal-600 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm uppercase tracking-wide">
                       <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
-                      <span>Llévatelo Verificado</span>
+                      <span>MANDÚ Verificado</span>
                     </div>
                   )}
 
@@ -275,6 +275,13 @@ export const HomeView: React.FC = () => {
           })}
         </div>
       </section>
+
+      {/* Footer Branding Tagline */}
+      <footer className="pt-4 pb-2 text-center">
+        <p className="text-xs font-bold text-slate-400 tracking-wide">
+          MANDÚ • Lo pides. Te lo llevan.
+        </p>
+      </footer>
     </div>
   );
 };

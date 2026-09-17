@@ -1,6 +1,6 @@
 {
-  "name": "Llévatelo",
-  "description": "Plataforma marketplace y delivery ultra rápida: pide comida, café, víveres y servicios profesionales en minutos.",
+  "name": "MANDÚ",
+  "description": "MANDÚ: Lo pides. Te lo llevan. Plataforma marketplace y delivery ultra rápida: comida, café, víveres y servicios profesionales en tu puerta.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

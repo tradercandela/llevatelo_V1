@@ -76,7 +76,7 @@ export const ProfileView: React.FC = () => {
               <span className="text-[10px] font-extrabold text-teal-400 uppercase tracking-wider block">
                 Beneficio Exclusivo
               </span>
-              <h3 className="text-base font-bold mt-0.5">Llévatelo Prime Activo</h3>
+              <h3 className="text-base font-bold mt-0.5">MANDÚ Prime Activo</h3>
               <p className="text-xs text-slate-300 mt-1 max-w-xs">
                 Envíos gratis ilimitados en pedidos mayores a $20.000 y soporte VIP 24/7.
               </p>

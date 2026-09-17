@@ -22,7 +22,7 @@ export const INITIAL_AUDIT_LOGS: AuditLogItem[] = [
   {
     id: 'log-2',
     storeName: 'Pizzería La 27',
-    user: 'Operaciones Llévatelo',
+    user: 'Operaciones MANDÚ',
     action: 'Cambio de Estado',
     details: 'Negocio activado y marcado como ABIERTO para despacho',
     timestamp: 'Hoy, 15:18'
@@ -42,7 +42,7 @@ export const STATUS_EXPLANATIONS = {
     title: 'ABIERTO',
     badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     dotClass: 'bg-emerald-500',
-    description: 'Tu negocio está abierto y visible para todos los clientes en Llévatelo. Los pedidos ingresan de inmediato.',
+    description: 'Tu negocio está abierto y visible para todos los clientes en MANDÚ. Los pedidos ingresan de inmediato.',
     alertClass: 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
   },
   closed: {

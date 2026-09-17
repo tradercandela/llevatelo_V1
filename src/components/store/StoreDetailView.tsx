@@ -58,7 +58,7 @@ export const StoreDetailView: React.FC = () => {
     if (navigator.share) {
       navigator.share({
         title: store.name,
-        text: `¡Mira el menú de ${store.name} en Llévatelo!`,
+        text: `¡Mira el menú de ${store.name} en MANDÚ!`,
         url: window.location.href,
       }).catch(() => {});
     } else {

@@ -126,7 +126,7 @@ export const QuickServiceModal: React.FC<QuickServiceModalProps> = ({ service, o
 
               <div className="flex items-center gap-2 text-[11px] text-slate-500 pt-1">
                 <ShieldCheck className="w-4 h-4 text-teal-600 flex-shrink-0" />
-                <span>Todos nuestros técnicos cuentan con antecedentes verificados y garantía de servicio Llévatelo.</span>
+                <span>Todos nuestros técnicos cuentan con antecedentes verificados y garantía de servicio MANDÚ.</span>
               </div>
 
               <button

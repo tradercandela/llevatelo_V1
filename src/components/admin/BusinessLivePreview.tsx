@@ -38,7 +38,7 @@ export const BusinessLivePreview: React.FC<BusinessLivePreviewProps> = ({
             Previsualización en Tiempo Real de la Tienda
           </span>
           <p className="text-[11px] text-[#667085]">
-            Así es exactamente como los clientes ven tu negocio en la aplicación de Llévatelo
+            Así es exactamente como los clientes ven tu negocio en la aplicación de MANDÚ
           </p>
         </div>
 

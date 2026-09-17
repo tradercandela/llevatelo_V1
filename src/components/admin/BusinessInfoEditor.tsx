@@ -126,7 +126,7 @@ export const BusinessInfoEditor: React.FC<BusinessInfoEditorProps> = ({
             <StoreIcon className="w-4 h-4 text-teal-600" />
             <span>Perfil e Identidad Comercial</span>
           </h3>
-          <p className="text-xs text-[#667085]">Información básica visible para los clientes en Llévatelo</p>
+          <p className="text-xs text-[#667085]">Información básica visible para los clientes en MANDÚ</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

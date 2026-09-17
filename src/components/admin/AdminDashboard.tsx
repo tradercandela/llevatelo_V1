@@ -82,7 +82,7 @@ export const AdminDashboard: React.FC = () => {
   const addAuditLog = (action: string, details: string, storeName?: string) => {
     const newLog: AuditLogItem = {
       id: `log-${Date.now()}`,
-      storeName: storeName || 'Plataforma Llévatelo',
+      storeName: storeName || 'Plataforma MANDÚ',
       user: 'Julián Candela (Admin)',
       action,
       details,
@@ -186,12 +186,12 @@ export const AdminDashboard: React.FC = () => {
             {/* Left Brand Identity */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-black text-lg shadow-sm shadow-teal-500/30">
-                LL
+                M
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-sm font-black tracking-tight text-[#111827] uppercase">
-                    Llévatelo Admin
+                    MANDÚ Admin
                   </h1>
                   <span className="px-1.5 py-0.5 rounded-md bg-teal-50 border border-teal-200 text-teal-700 text-[10px] font-bold">
                     v2.0 Console

@@ -322,6 +322,13 @@ export const QUICK_SERVICES: QuickService[] = [
 
 export const COUPONS: PromotionCoupon[] = [
   {
+    code: 'MANDU10',
+    discountPercent: 10,
+    minOrder: 25000,
+    description: '10% de descuento en pedidos mayores a $25.000',
+    expiresAt: '2026-12-31'
+  },
+  {
     code: 'LLEVATELO10',
     discountPercent: 10,
     minOrder: 25000,

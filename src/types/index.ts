@@ -82,7 +82,7 @@ export interface Store {
   cuisine: string; // e.g. "Italiana", "Local", "Cafetería & Donas"
   address: string;
   isOpen: boolean;
-  isVerified: boolean; // "Llévatelo Verificado"
+  isVerified: boolean; // "MANDÚ Verificado"
   featured?: boolean;
   categories: string[];
   phone?: string;
@@ -212,7 +212,7 @@ export interface UserProfile {
   defaultAddressId: string;
   addresses: Address[];
   favorites: string[]; // store IDs
-  membershipTier: 'Llévatelo Prime' | 'Estándar';
+  membershipTier: 'MANDÚ Prime' | 'Estándar';
   savedCoupons: string[];
 }
 

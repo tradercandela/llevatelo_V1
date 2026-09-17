@@ -209,15 +209,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     defaultAddressId: 'addr-1',
     addresses: DEFAULT_ADDRESSES,
     favorites: ['store-1', 'store-2'],
-    membershipTier: 'Llévatelo Prime',
-    savedCoupons: ['LLEVATELO10', 'ENVIOGRATIS']
+    membershipTier: 'MANDÚ Prime',
+    savedCoupons: ['MANDU10', 'ENVIOGRATIS']
   });
 
   // Pre-loaded active order for live tracking demo
   const [orders, setOrders] = useState<Order[]>([
     {
       id: 'ord-9021',
-      orderNumber: 'LLV-8921',
+      orderNumber: 'MND-8921',
       createdAt: 'Hace 8 minutos',
       items: [
         {
