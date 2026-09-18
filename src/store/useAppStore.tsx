@@ -132,6 +132,9 @@ interface AppContextType {
   setSelectedAddress: (addr: Address) => void;
   addAddress: (addr: Omit<Address, 'id'>) => void;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
+  verifyWhatsApp: (code: string) => { success: boolean; message: string };
+  verifyEmail: (code: string) => { success: boolean; message: string };
+  resetVerificationForTesting: () => void;
 
   // Notifications & Toasts
   notifications: NotificationItem[];
@@ -210,6 +213,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     phone: '+57 318 700 8921',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
     role: 'customer',
+    whatsappVerified: false,
+    emailVerified: false,
     defaultAddressId: 'addr-1',
     addresses: DEFAULT_ADDRESSES,
     favorites: ['store-1', 'store-2'],
@@ -262,7 +267,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'on_the_way',
       estimatedMinutes: 12,
       deliveryAddress: DEFAULT_ADDRESSES[0],
-      paymentMethod: 'apple_pay',
+      paymentMethod: 'nequi',
       courier: SAMPLE_COURIER,
       timeline: {
         confirmedAt: '17:28',
@@ -464,6 +469,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const placeOrder = (paymentMethod: PaymentMethodType, tip: number, address: Address): Order => {
+    // Server-side / store-side verification guard for Cash on Delivery (400/403 security enforcement)
+    if (paymentMethod === 'cash') {
+      const isEligibleForCash = Boolean(user.whatsappVerified && user.emailVerified);
+      if (!isEligibleForCash) {
+        showToast(
+          'Pago contraentrega denegado (403)',
+          'Por seguridad antifraude, debes verificar tu WhatsApp y tu correo electrónico antes de pedir en efectivo contraentrega.',
+          'warning'
+        );
+        throw new Error('403 Forbidden: Cash on delivery requires verified WhatsApp and email accounts.');
+      }
+    }
+
     const newOrderNumber = `LLV-${Math.floor(1000 + Math.random() * 9000)}`;
     const newOrder: Order = {
       id: `ord-${Date.now()}`,
@@ -575,6 +593,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateUserProfile = (updates: Partial<UserProfile>) => {
     setUser(prev => ({ ...prev, ...updates }));
     showToast('Perfil actualizado', 'Tus cambios han sido guardados.', 'success');
+  };
+
+  const verifyWhatsApp = (code: string): { success: boolean; message: string } => {
+    // Valid OTP codes for simulation: '123456' or any 6-digit code
+    if (!code || code.trim().length < 4) {
+      showToast('Código inválido', 'Ingresa el código OTP recibido por WhatsApp.', 'warning');
+      return { success: false, message: 'Código OTP incompleto.' };
+    }
+    const verifiedAt = new Date().toISOString();
+    setUser(prev => ({
+      ...prev,
+      whatsappVerified: true,
+      whatsappVerifiedAt: verifiedAt
+    }));
+    showToast('¡WhatsApp verificado!', 'Tu número ha sido validado satisfactoriamente.', 'success');
+    return { success: true, message: 'Número de WhatsApp verificado con éxito.' };
+  };
+
+  const verifyEmail = (code: string): { success: boolean; message: string } => {
+    if (!code || code.trim().length < 4) {
+      showToast('Código inválido', 'Ingresa el código de confirmación enviado a tu correo.', 'warning');
+      return { success: false, message: 'Código de confirmación incompleto.' };
+    }
+    const verifiedAt = new Date().toISOString();
+    setUser(prev => ({
+      ...prev,
+      emailVerified: true,
+      emailVerifiedAt: verifiedAt
+    }));
+    showToast('¡Correo verificado!', 'Tu correo electrónico ha sido validado satisfactoriamente.', 'success');
+    return { success: true, message: 'Correo verificado con éxito.' };
+  };
+
+  const resetVerificationForTesting = () => {
+    setUser(prev => ({
+      ...prev,
+      whatsappVerified: false,
+      whatsappVerifiedAt: undefined,
+      emailVerified: false,
+      emailVerifiedAt: undefined
+    }));
+    showToast('Verificaciones reiniciadas', 'Ahora puedes probar el flujo de validación nuevamente.', 'info');
   };
 
   const markNotificationsAsRead = () => {
@@ -772,6 +832,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedAddress,
         addAddress,
         updateUserProfile,
+        verifyWhatsApp,
+        verifyEmail,
+        resetVerificationForTesting,
         notifications,
         toasts,
         showToast,

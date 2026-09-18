@@ -196,11 +196,8 @@ export interface Address {
 }
 
 export type PaymentMethodType = 
+  | 'nequi'
   | 'card'
-  | 'apple_pay'
-  | 'google_pay'
-  | 'paypal'
-  | 'bizum'
   | 'cash';
 
 export type UserRole = 'customer' | 'admin' | 'merchant';
@@ -212,6 +209,10 @@ export interface UserProfile {
   phone: string;
   avatar: string;
   role: UserRole;
+  whatsappVerified: boolean;
+  whatsappVerifiedAt?: string;
+  emailVerified: boolean;
+  emailVerifiedAt?: string;
   defaultAddressId: string;
   addresses: Address[];
   favorites: string[]; // store IDs
