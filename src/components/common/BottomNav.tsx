@@ -3,7 +3,7 @@ import { Home, Search, ReceiptText, User, ShieldAlert, Sparkles } from 'lucide-r
 import { useApp, AppView } from '../../store/useAppStore';
 
 export const BottomNav: React.FC = () => {
-  const { currentView, setCurrentView, orders } = useApp();
+  const { currentView, setCurrentView, orders, isAdmin } = useApp();
 
   const activeOrdersCount = orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length;
 
@@ -44,19 +44,21 @@ export const BottomNav: React.FC = () => {
           );
         })}
 
-        {/* Quick button to view Operations & Admin panel */}
-        <button
-          onClick={() => setCurrentView('admin')}
-          title="Consola de Control y Operaciones"
-          className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-2xl transition-all active:scale-95 ${
-            currentView === 'admin'
-              ? 'bg-slate-900 text-teal-400 font-bold shadow-md'
-              : 'text-slate-400 hover:text-teal-600'
-          }`}
-        >
-          <ShieldAlert className="w-5 h-5" />
-          <span className="text-[10px] mt-1 font-semibold">Admin</span>
-        </button>
+        {/* Quick button to view Operations & Admin panel - Only visible for Admin / Merchant role */}
+        {isAdmin && (
+          <button
+            onClick={() => setCurrentView('admin')}
+            title="Consola de Control y Operaciones"
+            className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-2xl transition-all active:scale-95 ${
+              currentView === 'admin'
+                ? 'bg-slate-900 text-teal-400 font-bold shadow-md'
+                : 'text-slate-400 hover:text-teal-600'
+            }`}
+          >
+            <ShieldAlert className="w-5 h-5" />
+            <span className="text-[10px] mt-1 font-semibold">Admin</span>
+          </button>
+        )}
       </div>
     </nav>
   );

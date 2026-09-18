@@ -14,13 +14,25 @@ import {
   Lock,
   Smartphone,
   HelpCircle,
-  Share2
+  Share2,
+  Sliders
 } from 'lucide-react';
 import { useApp } from '../../store/useAppStore';
 
 export const ProfileView: React.FC = () => {
-  const { user, addresses, favorites, stores, setCurrentView, setSelectedStoreId, showToast } = useApp();
+  const { 
+    user, 
+    addresses, 
+    favorites, 
+    stores, 
+    setCurrentView, 
+    setSelectedStoreId, 
+    showToast,
+    isAdmin,
+    setUserRole 
+  } = useApp();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [currency, setCurrency] = useState<'COP' | 'USD' | 'EUR'>('COP');
 
   const favoriteStores = stores.filter(s => favorites.includes(s.id));
@@ -39,13 +51,15 @@ export const ProfileView: React.FC = () => {
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-100 px-4 h-16 flex items-center justify-between shadow-sm">
         <h1 className="text-lg font-extrabold text-[#0F172A]">Mi Perfil</h1>
-        <button
-          onClick={() => setCurrentView('admin')}
-          className="px-3 py-1 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1.5 shadow-sm"
-        >
-          <Shield className="w-3.5 h-3.5 text-teal-400" />
-          <span>Panel Admin</span>
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setCurrentView('admin')}
+            className="px-3 py-1 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-1.5 shadow-sm"
+          >
+            <Shield className="w-3.5 h-3.5 text-teal-400" />
+            <span>Panel Admin</span>
+          </button>
+        )}
       </header>
 
       <main className="max-w-xl mx-auto p-4 space-y-4">
@@ -68,20 +82,24 @@ export const ProfileView: React.FC = () => {
           </div>
         </section>
 
-        {/* Prime Membership Card */}
+        {/* Prime Membership Card - Inverted hierarchy focusing on concrete quantified benefit */}
         <section className="bg-gradient-to-r from-slate-900 to-[#0F172A] text-white rounded-3xl p-5 shadow-lg relative overflow-hidden">
           <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-32 h-32 bg-teal-500/20 rounded-full blur-2xl pointer-events-none"></div>
-          <div className="relative z-10 flex justify-between items-start">
-            <div>
-              <span className="text-[10px] font-extrabold text-teal-400 uppercase tracking-wider block">
-                Beneficio Exclusivo
+          <div className="relative z-10 flex justify-between items-start gap-4">
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold text-teal-300/80 uppercase tracking-wider block">
+                MANDÚ Prime Activo • Beneficio Exclusivo
               </span>
-              <h3 className="text-base font-bold mt-0.5">MANDÚ Prime Activo</h3>
-              <p className="text-xs text-slate-300 mt-1 max-w-xs">
-                Envíos gratis ilimitados en pedidos mayores a $20.000 y soporte VIP 24/7.
+              <h3 className="text-lg sm:text-xl font-extrabold text-white tracking-tight leading-snug">
+                Envíos gratis ilimitados{' '}
+                <span className="text-teal-300 font-black">en pedidos &gt; $20.000</span>
+              </h3>
+              <p className="text-xs text-slate-300 font-medium flex items-center gap-1.5 pt-0.5">
+                <Sparkles className="w-3.5 h-3.5 text-teal-400 flex-shrink-0" />
+                <span>Incluye atención y soporte prioritario VIP 24/7</span>
               </p>
             </div>
-            <div className="w-10 h-10 rounded-2xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-400">
+            <div className="w-11 h-11 rounded-2xl bg-teal-500/20 border border-teal-400/30 flex items-center justify-center text-teal-400 flex-shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
           </div>
@@ -134,28 +152,86 @@ export const ProfileView: React.FC = () => {
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </button>
+        </section>
 
-          <div className="flex items-center justify-between p-3.5">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
-                <Coins className="w-4 h-4" />
+        {/* Configuración Avanzada (Opciones secundarias y sandbox de roles) */}
+        <section className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm space-y-3">
+          <button
+            onClick={() => setShowAdvancedSettings(prev => !prev)}
+            className="w-full flex items-center justify-between text-xs font-bold text-slate-700 hover:text-[#0F172A] py-1"
+          >
+            <div className="flex items-center gap-2.5 text-slate-600">
+              <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+                <Sliders className="w-4 h-4" />
               </div>
-              <span>Moneda de visualización</span>
+              <div className="text-left">
+                <span className="block text-[#0F172A]">Configuración avanzada</span>
+                <span className="text-[10px] font-normal text-slate-400">Preferencias regionales y control de acceso</span>
+              </div>
             </div>
-            <div className="flex gap-1">
-              {(['COP', 'USD', 'EUR'] as const).map(c => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                    currency === c ? 'bg-teal-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
+            <span className="text-[11px] font-semibold text-teal-600 bg-teal-50 px-2.5 py-1 rounded-lg">
+              {showAdvancedSettings ? 'Ocultar' : 'Configurar'}
+            </span>
+          </button>
+
+          {showAdvancedSettings && (
+            <div className="pt-3 border-t border-slate-100 space-y-3.5">
+              {/* Currency selector moved here */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Coins className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-xs font-bold text-[#0F172A]">Moneda de visualización</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Mercado activo: Colombia (COP)</span>
+                </div>
+                <div className="flex gap-1">
+                  {(['COP', 'USD', 'EUR'] as const).map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setCurrency(c)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-colors ${
+                        currency === c ? 'bg-teal-500 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Role Toggle for testing role separation */}
+              <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5 text-slate-400" />
+                    <span className="text-xs font-bold text-[#0F172A]">Rol de la Cuenta</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">
+                    {isAdmin ? 'Privilegios de Administrador / Comercio' : 'Modo estándar de Consumidor (sin acceso admin)'}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setUserRole('customer')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      user.role === 'customer' ? 'bg-slate-900 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Consumidor
+                  </button>
+                  <button
+                    onClick={() => setUserRole('admin')}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                      user.role === 'admin' ? 'bg-teal-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    Admin
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </section>
       </main>
 

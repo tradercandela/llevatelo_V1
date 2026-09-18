@@ -8,6 +8,7 @@ import {
   Address, 
   PaymentMethodType, 
   UserProfile, 
+  UserRole,
   PromotionCoupon, 
   NotificationItem, 
   QuickService, 
@@ -124,6 +125,8 @@ interface AppContextType {
 
   // User & Addresses
   user: UserProfile;
+  isAdmin: boolean;
+  setUserRole: (role: UserRole) => void;
   selectedAddress: Address;
   addresses: Address[];
   setSelectedAddress: (addr: Address) => void;
@@ -158,7 +161,7 @@ const SAMPLE_COURIER: Courier = {
 };
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentView, setCurrentView] = useState<AppView>('home');
+  const [currentView, setCurrentViewState] = useState<AppView>('home');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
   const [selectedProductForModal, setSelectedProductForModal] = useState<Product | null>(null);
   const [quickServiceModal, setQuickServiceModal] = useState<QuickService | null>(null);
@@ -206,12 +209,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     email: 'juliancandelacely@gmail.com',
     phone: '+57 318 700 8921',
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+    role: 'customer',
     defaultAddressId: 'addr-1',
     addresses: DEFAULT_ADDRESSES,
     favorites: ['store-1', 'store-2'],
     membershipTier: 'MANDÚ Prime',
     savedCoupons: ['MANDU10', 'ENVIOGRATIS']
   });
+
+  const isAdmin = user.role === 'admin' || user.role === 'merchant';
+
+  const setCurrentView = (view: AppView) => {
+    if (view === 'admin' && !isAdmin) {
+      showToast('Acceso Restringido', 'El panel de administración requiere rol de administrador o comercio.', 'warning');
+      return;
+    }
+    setCurrentViewState(view);
+  };
+
+  const setUserRole = (newRole: UserRole) => {
+    setUser(prev => ({ ...prev, role: newRole }));
+    showToast(
+      newRole === 'customer' ? 'Modo Consumidor activado' : 'Modo Administrador activado',
+      `Permisos cambiados a rol: ${newRole.toUpperCase()}`,
+      'info'
+    );
+    if (newRole === 'customer' && currentView === 'admin') {
+      setCurrentViewState('home');
+    }
+  };
 
   // Pre-loaded active order for live tracking demo
   const [orders, setOrders] = useState<Order[]>([
@@ -739,6 +765,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         advanceOrderStatus,
         repeatOrder,
         user,
+        isAdmin,
+        setUserRole,
         selectedAddress,
         addresses,
         setSelectedAddress,

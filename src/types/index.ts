@@ -203,12 +203,15 @@ export type PaymentMethodType =
   | 'bizum'
   | 'cash';
 
+export type UserRole = 'customer' | 'admin' | 'merchant';
+
 export interface UserProfile {
   id: string;
   name: string;
   email: string;
   phone: string;
   avatar: string;
+  role: UserRole;
   defaultAddressId: string;
   addresses: Address[];
   favorites: string[]; // store IDs

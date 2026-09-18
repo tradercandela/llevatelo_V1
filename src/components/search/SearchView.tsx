@@ -80,8 +80,8 @@ export const SearchView: React.FC = () => {
               autoFocus
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Buscar donas, pizza, técnicos, empanadas..."
-              className="w-full h-11 pl-11 pr-10 rounded-full bg-slate-50 border-0 ring-1 ring-inset ring-slate-200 text-sm text-[#0F172A] focus:ring-2 focus:ring-teal-500"
+              placeholder="Buscar comida o servicios..."
+              className="w-full h-11 pl-11 pr-10 rounded-full bg-slate-50 border-0 ring-1 ring-inset ring-slate-200 text-sm text-[#0F172A] placeholder:text-slate-400 placeholder:truncate focus:ring-2 focus:ring-teal-500"
             />
             {searchQuery && (
               <button

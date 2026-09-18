@@ -364,7 +364,7 @@ export const AdminDashboard: React.FC = () => {
             {currentTab === 'overview' && (
               <div className="space-y-6">
                 {/* Executive KPIs */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                   <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 shadow-xs">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-[#667085]">Comercios Registrados</span>
@@ -376,7 +376,7 @@ export const AdminDashboard: React.FC = () => {
                       {stores.length}
                     </div>
                     <p className="text-[11px] text-[#667085] mt-1">
-                      {stores.filter(s => s.isOpen).length} abiertos ahora para despacho
+                      {stores.filter(s => s.isOpen).length} abiertos para despacho
                     </p>
                   </div>
 
@@ -406,22 +406,39 @@ export const AdminDashboard: React.FC = () => {
                       {couriers.length}
                     </div>
                     <p className="text-[11px] text-emerald-700 font-semibold mt-1">
-                      {couriers.filter(c => c.status === 'active' || c.status === 'on_route').length} activos en calle
+                      {couriers.filter(c => c.status === 'active' || c.status === 'on_route').length} activos en ruta
                     </p>
                   </div>
 
+                  {/* Separated Metric 1: Pedidos Activos (en preparación + en camino) */}
                   <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 shadow-xs">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-[#667085]">Pedidos Activos</span>
                       <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center">
-                        <ShoppingBag className="w-4 h-4" />
+                        <Clock className="w-4 h-4" />
                       </div>
                     </div>
                     <div className="text-2xl font-bold text-[#111827]">
                       {orders.filter(o => o.status !== 'delivered' && o.status !== 'cancelled').length}
                     </div>
+                    <p className="text-[11px] text-amber-700 font-semibold mt-1">
+                      {orders.filter(o => o.status === 'confirmed' || o.status === 'preparing').length} en cocina • {orders.filter(o => o.status === 'on_the_way').length} en ruta
+                    </p>
+                  </div>
+
+                  {/* Separated Metric 2: Pedidos Totales / Históricos (acumulado histórico) */}
+                  <div className="bg-white border border-[#E4E7EC] rounded-2xl p-4 shadow-xs">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-[#667085]">Pedidos Históricos</span>
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center">
+                        <ShoppingBag className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-bold text-[#111827]">
+                      {orders.length}
+                    </div>
                     <p className="text-[11px] text-[#667085] mt-1">
-                      {orders.length} pedidos históricos en sistema
+                      {orders.filter(o => o.status === 'delivered').length} completados con éxito
                     </p>
                   </div>
                 </div>

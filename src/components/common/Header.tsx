@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Zap, 
   MapPin, 
@@ -12,6 +12,13 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../store/useAppStore';
 import { motion, AnimatePresence } from 'motion/react';
+
+const ROTATING_SEARCH_PLACEHOLDERS = [
+  'Buscar comida o café...',
+  'Buscar donas o pizza...',
+  'Buscar en MANDÚ...',
+  'Buscar servicios...'
+];
 
 interface HeaderProps {
   onOpenAddressModal: () => void;
@@ -36,7 +43,15 @@ export const Header: React.FC<HeaderProps> = ({
   } = useApp();
 
   const [showNotifications, setShowNotifications] = useState(false);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const unreadNotifs = notifications.filter(n => !n.read).length;
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPlaceholderIndex(prev => (prev + 1) % ROTATING_SEARCH_PLACEHOLDERS.length);
+    }, 3200);
+    return () => clearInterval(timer);
+  }, []);
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-100 px-3 sm:px-4 pt-safe pb-3 shadow-[0_2px_15px_rgba(0,0,0,0.03)] transition-all w-full">
@@ -61,18 +76,19 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Center/Right Items Container */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 flex-1 justify-end">
-          {/* Address Dropdown */}
+          {/* Address Dropdown with strict responsive max-width and ellipsis */}
           <button 
             id="header-address-select-btn"
             onClick={onOpenAddressModal}
-            className="flex flex-col items-end text-right px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl hover:bg-slate-50 active:scale-95 transition-all min-w-0 max-w-[120px] xs:max-w-[145px] sm:max-w-[200px]"
+            className="flex flex-col items-end text-right px-1.5 py-1 sm:px-2.5 sm:py-1.5 rounded-xl hover:bg-slate-50 active:scale-95 transition-all min-w-0 max-w-[105px] xs:max-w-[130px] sm:max-w-[180px] md:max-w-[240px]"
+            title={selectedAddress.area || selectedAddress.title || selectedAddress.street}
           >
-            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block truncate w-full">
               Entregar en
             </span>
-            <div className="flex items-center gap-1 max-w-full">
+            <div className="flex items-center gap-1 w-full min-w-0 justify-end">
               <MapPin className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
-              <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate">
+              <span className="text-xs sm:text-sm font-bold text-[#0F172A] truncate min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-right">
                 {selectedAddress.area || selectedAddress.title}
               </span>
               <ChevronDown className="w-3.5 h-3.5 text-teal-600 flex-shrink-0" />
@@ -183,8 +199,8 @@ export const Header: React.FC<HeaderProps> = ({
               onFocus={() => {
                 if (searchQuery.length > 0) setCurrentView('search');
               }}
-              placeholder="¿Qué te apetece hoy? Donas, pizza, plomería..."
-              className="w-full h-11 pl-10 sm:pl-11 pr-4 rounded-full bg-slate-50 border-0 ring-1 ring-inset ring-slate-200 text-sm text-[#0F172A] placeholder:text-slate-400 focus:ring-2 focus:ring-inset focus:ring-teal-500 transition-all shadow-sm"
+              placeholder={ROTATING_SEARCH_PLACEHOLDERS[placeholderIndex]}
+              className="w-full h-11 pl-10 sm:pl-11 pr-4 rounded-full bg-slate-50 border-0 ring-1 ring-inset ring-slate-200 text-sm text-[#0F172A] placeholder:text-slate-400 placeholder:truncate focus:ring-2 focus:ring-inset focus:ring-teal-500 transition-all shadow-sm"
             />
           </div>
           <button

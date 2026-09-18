@@ -33,7 +33,8 @@ const AppContent: React.FC = () => {
     stores,
     quickServiceModal,
     setQuickServiceModal,
-    isMobileFrameMode
+    isMobileFrameMode,
+    isAdmin
   } = useApp();
 
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
@@ -100,6 +101,18 @@ const AppContent: React.FC = () => {
         );
 
       case 'admin':
+        if (!isAdmin) {
+          return (
+            <div className="min-h-screen bg-[#F8FAFC]">
+              <Header onOpenAddressModal={() => setIsAddressModalOpen(true)} />
+              <main className="max-w-7xl mx-auto px-4 pt-3">
+                <HomeView />
+              </main>
+              <FloatingCartPill />
+              <BottomNav />
+            </div>
+          );
+        }
         return <AdminDashboard />;
 
       default:
